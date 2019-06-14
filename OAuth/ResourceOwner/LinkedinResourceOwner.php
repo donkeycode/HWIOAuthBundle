@@ -13,6 +13,8 @@ namespace HWI\Bundle\OAuthBundle\OAuth\ResourceOwner;
 
 use HWI\Bundle\OAuthBundle\OAuth\Response\LinkedinUserResponse;
 use Symfony\Component\OptionsResolver\OptionsResolver;
+use Symfony\Component\HttpFoundation\Request as HttpRequest;
+use HWI\Bundle\OAuthBundle\Security\OAuthErrorHandler;
 
 /**
  * LinkedinResourceOwner.
@@ -100,5 +102,28 @@ class LinkedinResourceOwner extends GenericOAuth2ResourceOwner
 
             'use_bearer_authorization' => true,
         ]);
+    }
+
+    /**
+     * {@inheritdoc}
+     */
+    public function getAccessToken(HttpRequest $request, $redirectUri, array $extraParameters = [])
+    {
+        OAuthErrorHandler::handleOAuthError($request);
+
+        $parameters = array_merge([
+            'code' => $request->query->get('code'),
+            'grant_type' => 'authorization_code',
+            'redirect_uri' => $redirectUri,
+            'client_id' => $this->options['client_id'],
+            'client_secret' => $this->options['client_secret'],
+        ], $extraParameters);
+
+        $response = $this->doGetTokenRequest($this->options['access_token_url'], $parameters);
+        $response = $this->getResponseContent($response);
+
+        $this->validateResponseContent($response);
+
+        return $response;
     }
 }
